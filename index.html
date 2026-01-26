@@ -1165,9 +1165,11 @@
         
         // Initialize - try API first, fall back to demo
         async function init() {
-            const hasApiData = await fetchWorkouts();
-            if (hasApiData) {
-                await fetchStats();
+            const hasWorkouts = await fetchWorkouts();
+            // Always fetch stats (even without workouts, we may have daily step data)
+            const hasStats = await fetchStats();
+            
+            if (hasWorkouts || hasStats) {
                 startAutoRefresh();
             }
             // If no API data, user can click "Load Demo" or import manually

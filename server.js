@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 3000;
 // PostgreSQL connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://agent_factory_user:yRSBYmtCkuZZPygdY0uqVQkANB3r6PFV@dpg-d5q9v4hr0fns73ddu1jg-a.oregon-postgres.render.com:5432/agent_factory',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
 });
 
 // Middleware

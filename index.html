@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jimmy's Fitness Heat Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        /* Main Layout */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 380px;
+            background: linear-gradient(180deg, #111 0%, #0a0a0a 100%);
+            border-right: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid #222;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo h1 {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        
+        /* Stats Overview */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 20px 24px;
+            border-bottom: 1px solid #222;
+        }
+        
+        .stat-card {
+            background: #161616;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #222;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .stat-value.orange { color: #ff6b35; }
+        .stat-value.green { color: #00d26a; }
+        .stat-value.blue { color: #3b82f6; }
+        .stat-value.purple { color: #a855f7; }
+        
+        .stat-unit {
+            font-size: 12px;
+            color: #666;
+            font-weight: 400;
+        }
+        
+        /* Time Slider */
+        .time-filter {
+            padding: 20px 24px;
+            border-bottom: 1px solid #222;
+        }
+        
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .filter-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .filter-value {
+            font-size: 13px;
+            color: #ff6b35;
+            font-weight: 500;
+        }
+        
+        .time-slider {
+            width: 100%;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+        }
+        
+        .time-range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        /* Activity Type Filter */
+        .activity-filter {
+            padding: 16px 24px;
+            border-bottom: 1px solid #222;
+        }
+        
+        .activity-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .activity-btn {
+            padding: 8px 14px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            background: transparent;
+            color: #888;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .activity-btn:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+        
+        .activity-btn.active {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border-color: transparent;
+            color: #fff;
+        }
+        
+        /* Workout Cards */
+        .workouts-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 24px;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .workout-count {
+            background: #222;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: #888;
+        }
+        
+        .workout-card {
+            background: #161616;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #222;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .workout-card:hover {
+            border-color: #ff6b35;
+            transform: translateY(-2px);
+        }
+        
+        .workout-card.selected {
+            border-color: #ff6b35;
+            background: #1a1a1a;
+        }
+        
+        .workout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .workout-type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .workout-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .workout-icon.walk { background: #00d26a22; }
+        .workout-icon.run { background: #ff6b3522; }
+        .workout-icon.cycle { background: #3b82f622; }
+        .workout-icon.hike { background: #a855f722; }
+        
+        .workout-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .workout-location {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .workout-date {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .workout-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .workout-stat {
+            text-align: center;
+        }
+        
+        .workout-stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .workout-stat-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+        }
+        
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .map-btn {
+            width: 44px;
+            height: 44px;
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .map-btn:hover {
+            background: #222;
+            border-color: #ff6b35;
+        }
+        
+        /* Heat Map Legend */
+        .heatmap-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            background: #161616ee;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            z-index: 1000;
+        }
+        
+        .legend-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        
+        .legend-gradient {
+            width: 150px;
+            height: 12px;
+            background: linear-gradient(90deg, #3b82f6 0%, #00d26a 33%, #f7931e 66%, #ff6b35 100%);
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #666;
+        }
+        
+        /* Import Panel */
+        .import-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px 24px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .import-text {
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .import-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .import-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .demo-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #888;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .demo-btn:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+        
+        /* World View Button */
+        .world-view-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .world-view-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+        
+        /* Leaflet Overrides */
+        .leaflet-control-zoom {
+            display: none;
+        }
+        
+        .leaflet-container {
+            background: #0a0a0a;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🏃</div>
+                    <h1>FitMap</h1>
+                </div>
+                <p class="subtitle">Jimmy's Workout Heat Map</p>
+            </div>
+            
+            <!-- Stats Overview -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Distance</div>
+                    <div class="stat-value orange" id="totalDistance">0<span class="stat-unit"> mi</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Steps</div>
+                    <div class="stat-value green" id="totalSteps">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Workouts</div>
+                    <div class="stat-value blue" id="totalWorkouts">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Calories</div>
+                    <div class="stat-value purple" id="totalCalories">0</div>
+                </div>
+            </div>
+            
+            <!-- Time Slider -->
+            <div class="time-filter">
+                <div class="filter-header">
+                    <span class="filter-title">Time Range</span>
+                    <span class="filter-value" id="timeRangeValue">All Time</span>
+                </div>
+                <input type="range" class="time-slider" id="timeSlider" min="0" max="12" value="12">
+                <div class="time-range-labels">
+                    <span>1 Month</span>
+                    <span>6 Months</span>
+                    <span>All Time</span>
+                </div>
+            </div>
+            
+            <!-- Activity Filter -->
+            <div class="activity-filter">
+                <div class="activity-buttons">
+                    <button class="activity-btn active" data-type="all">All</button>
+                    <button class="activity-btn" data-type="walk">🚶 Walk</button>
+                    <button class="activity-btn" data-type="run">🏃 Run</button>
+                    <button class="activity-btn" data-type="cycle">🚴 Cycle</button>
+                    <button class="activity-btn" data-type="hike">🥾 Hike</button>
+                </div>
+            </div>
+            
+            <!-- Workout Cards -->
+            <div class="workouts-section">
+                <div class="section-title">
+                    Recent Workouts
+                    <span class="workout-count" id="workoutCount">0</span>
+                </div>
+                <div id="workoutList"></div>
+            </div>
+        </div>
+        
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <!-- Import Panel -->
+            <div class="import-panel">
+                <span class="import-text">Import your Apple Health data</span>
+                <input type="file" id="fileInput" accept=".gpx,.xml,.json" style="display: none;">
+                <button class="import-btn" onclick="document.getElementById('fileInput').click()">📁 Import Data</button>
+                <button class="demo-btn" id="loadDemoBtn">Load Demo</button>
+            </div>
+            
+            <!-- Map Controls -->
+            <div class="map-controls">
+                <button class="map-btn" id="zoomIn">+</button>
+                <button class="map-btn" id="zoomOut">−</button>
+                <button class="map-btn" id="toggleHeat">🔥</button>
+                <button class="map-btn" id="toggleSatellite">🛰️</button>
+            </div>
+            
+            <!-- World View Button -->
+            <button class="world-view-btn" id="worldViewBtn">
+                🌍 World View
+            </button>
+            
+            <!-- Legend -->
+            <div class="heatmap-legend">
+                <div class="legend-title">Activity Intensity</div>
+                <div class="legend-gradient"></div>
+                <div class="legend-labels">
+                    <span>Low</span>
+                    <span>Medium</span>
+                    <span>High</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Heat Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <script>
+        // Initialize map centered on Garden Grove
+        const map = L.map('map', {
+            center: [33.7743, -117.9379],
+            zoom: 12,
+            zoomControl: false
+        });
+        
+        // Dark tile layer
+        const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+        
+        // Satellite layer (hidden by default)
+        const satelliteTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        });
+        
+        let currentTiles = 'dark';
+        let heatLayer = null;
+        let routeLayers = [];
+        let workouts = [];
+        let selectedWorkoutId = null;
+        
+        // Demo workout data (Garden Grove and around the world)
+        const demoWorkouts = [
+            {
+                id: 1,
+                type: 'walk',
+                name: 'Morning Walk',
+                location: 'Garden Grove, CA',
+                date: '2026-01-25',
+                distance: 2.3,
+                steps: 4800,
+                duration: 35,
+                calories: 180,
+                route: [
+                    [33.7743, -117.9379], [33.7750, -117.9360], [33.7765, -117.9345],
+                    [33.7780, -117.9330], [33.7790, -117.9350], [33.7775, -117.9370],
+                    [33.7760, -117.9385], [33.7743, -117.9379]
+                ]
+            },
+            {
+                id: 2,
+                type: 'run',
+                name: 'Evening Run',
+                location: 'Mile Square Park',
+                date: '2026-01-24',
+                distance: 3.8,
+                steps: 6200,
+                duration: 28,
+                calories: 320,
+                route: [
+                    [33.7134, -117.9428], [33.7150, -117.9400], [33.7180, -117.9380],
+                    [33.7200, -117.9400], [33.7180, -117.9450], [33.7150, -117.9460],
+                    [33.7134, -117.9428]
+                ]
+            },
+            {
+                id: 3,
+                type: 'walk',
+                name: 'Lunch Walk',
+                location: 'Fountain Valley, CA',
+                date: '2026-01-23',
+                distance: 1.5,
+                steps: 3200,
+                duration: 22,
+                calories: 120,
+                route: [
+                    [33.7092, -117.9536], [33.7100, -117.9520], [33.7115, -117.9510],
+                    [33.7105, -117.9530], [33.7092, -117.9536]
+                ]
+            },
+            {
+                id: 4,
+                type: 'hike',
+                name: 'Weekend Hike',
+                location: 'Crystal Cove, Newport',
+                date: '2026-01-19',
+                distance: 5.2,
+                steps: 11000,
+                duration: 95,
+                calories: 520,
+                route: [
+                    [33.5667, -117.8333], [33.5680, -117.8300], [33.5700, -117.8280],
+                    [33.5720, -117.8260], [33.5740, -117.8280], [33.5720, -117.8310],
+                    [33.5690, -117.8340], [33.5667, -117.8333]
+                ]
+            },
+            {
+                id: 5,
+                type: 'cycle',
+                name: 'Beach Bike Ride',
+                location: 'Huntington Beach',
+                date: '2026-01-18',
+                distance: 12.5,
+                steps: 0,
+                duration: 55,
+                calories: 480,
+                route: [
+                    [33.6603, -117.9992], [33.6650, -117.9980], [33.6700, -117.9950],
+                    [33.6750, -117.9920], [33.6800, -117.9900], [33.6850, -117.9880],
+                    [33.6800, -117.9900], [33.6750, -117.9920], [33.6700, -117.9950],
+                    [33.6603, -117.9992]
+                ]
+            },
+            {
+                id: 6,
+                type: 'run',
+                name: 'Tokyo Morning Run',
+                location: 'Yoyogi Park, Tokyo',
+                date: '2025-12-15',
+                distance: 4.2,
+                steps: 7000,
+                duration: 32,
+                calories: 380,
+                route: [
+                    [35.6717, 139.6949], [35.6730, 139.6970], [35.6750, 139.6990],
+                    [35.6740, 139.7010], [35.6720, 139.6990], [35.6717, 139.6949]
+                ]
+            },
+            {
+                id: 7,
+                type: 'walk',
+                name: 'NYC Central Park',
+                location: 'Central Park, NYC',
+                date: '2025-11-20',
+                distance: 3.5,
+                steps: 7200,
+                duration: 50,
+                calories: 280,
+                route: [
+                    [40.7812, -73.9665], [40.7830, -73.9650], [40.7850, -73.9630],
+                    [40.7840, -73.9610], [40.7820, -73.9640], [40.7812, -73.9665]
+                ]
+            },
+            {
+                id: 8,
+                type: 'hike',
+                name: 'Paris City Walk',
+                location: 'Champs-Élysées, Paris',
+                date: '2025-10-10',
+                distance: 4.8,
+                steps: 9800,
+                duration: 75,
+                calories: 400,
+                route: [
+                    [48.8698, 2.3078], [48.8710, 2.3100], [48.8730, 2.3150],
+                    [48.8720, 2.3180], [48.8700, 2.3140], [48.8698, 2.3078]
+                ]
+            },
+            {
+                id: 9,
+                type: 'run',
+                name: 'Sydney Harbor Run',
+                location: 'Sydney, Australia',
+                date: '2025-09-05',
+                distance: 5.0,
+                steps: 8200,
+                duration: 38,
+                calories: 420,
+                route: [
+                    [-33.8568, 151.2153], [-33.8550, 151.2180], [-33.8530, 151.2200],
+                    [-33.8540, 151.2170], [-33.8568, 151.2153]
+                ]
+            },
+            {
+                id: 10,
+                type: 'walk',
+                name: 'London Eye Walk',
+                location: 'London, UK',
+                date: '2025-08-15',
+                distance: 2.8,
+                steps: 5800,
+                duration: 42,
+                calories: 220,
+                route: [
+                    [51.5033, -0.1195], [51.5050, -0.1170], [51.5070, -0.1150],
+                    [51.5060, -0.1180], [51.5033, -0.1195]
+                ]
+            }
+        ];
+        
+        // Format numbers with commas
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        // Get workout icon
+        function getWorkoutIcon(type) {
+            const icons = { walk: '🚶', run: '🏃', cycle: '🚴', hike: '🥾' };
+            return icons[type] || '🏃';
+        }
+        
+        // Get route color
+        function getRouteColor(type) {
+            const colors = { walk: '#00d26a', run: '#ff6b35', cycle: '#3b82f6', hike: '#a855f7' };
+            return colors[type] || '#ff6b35';
+        }
+        
+        // Update stats
+        function updateStats() {
+            const totalDistance = workouts.reduce((sum, w) => sum + w.distance, 0);
+            const totalSteps = workouts.reduce((sum, w) => sum + w.steps, 0);
+            const totalCalories = workouts.reduce((sum, w) => sum + w.calories, 0);
+            
+            document.getElementById('totalDistance').innerHTML = `${totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
+            document.getElementById('totalSteps').textContent = formatNumber(totalSteps);
+            document.getElementById('totalWorkouts').textContent = workouts.length;
+            document.getElementById('totalCalories').textContent = formatNumber(totalCalories);
+            document.getElementById('workoutCount').textContent = workouts.length;
+        }
+        
+        // Render workout cards
+        function renderWorkoutCards() {
+            const container = document.getElementById('workoutList');
+            container.innerHTML = workouts.map(w => `
+                <div class="workout-card ${selectedWorkoutId === w.id ? 'selected' : ''}" data-id="${w.id}">
+                    <div class="workout-header">
+                        <div class="workout-type">
+                            <div class="workout-icon ${w.type}">${getWorkoutIcon(w.type)}</div>
+                            <div>
+                                <div class="workout-name">${w.name}</div>
+                                <div class="workout-location">${w.location}</div>
+                            </div>
+                        </div>
+                        <div class="workout-date">${new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                    </div>
+                    <div class="workout-stats">
+                        <div class="workout-stat">
+                            <div class="workout-stat-value">${w.distance}</div>
+                            <div class="workout-stat-label">Miles</div>
+                        </div>
+                        <div class="workout-stat">
+                            <div class="workout-stat-value">${w.duration}</div>
+                            <div class="workout-stat-label">Minutes</div>
+                        </div>
+                        <div class="workout-stat">
+                            <div class="workout-stat-value">${w.calories}</div>
+                            <div class="workout-stat-label">Calories</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Add click handlers
+            document.querySelectorAll('.workout-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = parseInt(card.dataset.id);
+                    selectWorkout(id);
+                });
+            });
+        }
+        
+        // Select workout
+        function selectWorkout(id) {
+            selectedWorkoutId = id;
+            const workout = workouts.find(w => w.id === id);
+            if (workout && workout.route.length > 0) {
+                const bounds = L.latLngBounds(workout.route);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+            renderWorkoutCards();
+            renderRoutes();
+        }
+        
+        // Render routes on map
+        function renderRoutes() {
+            // Clear existing routes
+            routeLayers.forEach(layer => map.removeLayer(layer));
+            routeLayers = [];
+            
+            // Add routes
+            workouts.forEach(workout => {
+                if (workout.route.length > 0) {
+                    const polyline = L.polyline(workout.route, {
+                        color: getRouteColor(workout.type),
+                        weight: selectedWorkoutId === workout.id ? 5 : 3,
+                        opacity: selectedWorkoutId === workout.id ? 1 : 0.6
+                    }).addTo(map);
+                    
+                    polyline.on('click', () => selectWorkout(workout.id));
+                    routeLayers.push(polyline);
+                    
+                    // Add start marker
+                    const startMarker = L.circleMarker(workout.route[0], {
+                        radius: 6,
+                        fillColor: getRouteColor(workout.type),
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 1
+                    }).addTo(map);
+                    routeLayers.push(startMarker);
+                }
+            });
+        }
+        
+        // Update heat map
+        function updateHeatMap() {
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+            }
+            
+            const heatData = [];
+            workouts.forEach(workout => {
+                workout.route.forEach(point => {
+                    heatData.push([point[0], point[1], 0.5]);
+                });
+            });
+            
+            if (heatData.length > 0) {
+                heatLayer = L.heatLayer(heatData, {
+                    radius: 25,
+                    blur: 15,
+                    maxZoom: 17,
+                    gradient: {
+                        0.4: '#3b82f6',
+                        0.6: '#00d26a',
+                        0.8: '#f7931e',
+                        1.0: '#ff6b35'
+                    }
+                }).addTo(map);
+            }
+        }
+        
+        // Load workouts
+        function loadWorkouts(data) {
+            workouts = data;
+            updateStats();
+            renderWorkoutCards();
+            renderRoutes();
+            updateHeatMap();
+        }
+        
+        // Event Listeners
+        document.getElementById('loadDemoBtn').addEventListener('click', () => {
+            loadWorkouts(demoWorkouts);
+            document.querySelector('.import-panel').style.display = 'none';
+        });
+        
+        document.getElementById('worldViewBtn').addEventListener('click', () => {
+            map.setView([20, 0], 2);
+        });
+        
+        document.getElementById('zoomIn').addEventListener('click', () => map.zoomIn());
+        document.getElementById('zoomOut').addEventListener('click', () => map.zoomOut());
+        
+        document.getElementById('toggleHeat').addEventListener('click', () => {
+            if (heatLayer) {
+                if (map.hasLayer(heatLayer)) {
+                    map.removeLayer(heatLayer);
+                } else {
+                    map.addLayer(heatLayer);
+                }
+            }
+        });
+        
+        document.getElementById('toggleSatellite').addEventListener('click', () => {
+            if (currentTiles === 'dark') {
+                map.removeLayer(darkTiles);
+                map.addLayer(satelliteTiles);
+                currentTiles = 'satellite';
+            } else {
+                map.removeLayer(satelliteTiles);
+                map.addLayer(darkTiles);
+                currentTiles = 'dark';
+            }
+        });
+        
+        // Activity filter
+        document.querySelectorAll('.activity-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.activity-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const type = btn.dataset.type;
+                if (type === 'all') {
+                    loadWorkouts(demoWorkouts);
+                } else {
+                    loadWorkouts(demoWorkouts.filter(w => w.type === type));
+                }
+            });
+        });
+        
+        // Time slider
+        document.getElementById('timeSlider').addEventListener('input', (e) => {
+            const months = parseInt(e.target.value);
+            const labels = ['1 Month', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', 
+                           '7 Months', '8 Months', '9 Months', '10 Months', '11 Months', '1 Year', 'All Time'];
+            document.getElementById('timeRangeValue').textContent = labels[months];
+            
+            // Filter workouts by date
+            const now = new Date();
+            const cutoff = new Date();
+            cutoff.setMonth(cutoff.getMonth() - (months + 1));
+            
+            if (months === 12) {
+                loadWorkouts(demoWorkouts);
+            } else {
+                loadWorkouts(demoWorkouts.filter(w => new Date(w.date) >= cutoff));
+            }
+        });
+        
+        // File import
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    // Parse GPX or JSON
+                    const content = event.target.result;
+                    if (file.name.endsWith('.json')) {
+                        try {
+                            const data = JSON.parse(content);
+                            loadWorkouts(data);
+                            document.querySelector('.import-panel').style.display = 'none';
+                        } catch (err) {
+                            alert('Error parsing JSON file');
+                        }
+                    } else if (file.name.endsWith('.gpx')) {
+                        // Basic GPX parsing
+                        alert('GPX import coming soon! Use JSON format for now.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>

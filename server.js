@@ -211,10 +211,43 @@ app.get('/api/daily', async (req, res) => {
 app.post('/api/webhook/health', async (req, res) => {
     try {
         console.log('Received health webhook:', new Date().toISOString());
+        console.log('Payload keys:', Object.keys(req.body));
         const payload = req.body;
         
         // Log the sync
         await pool.query('INSERT INTO fitness_sync_log (payload) VALUES ($1)', [JSON.stringify(payload)]);
+        
+        // Handle iOS Shortcuts format (direct values)
+        if (payload.steps !== undefined || payload.distance !== undefined || payload.calories !== undefined) {
+            const today = new Date().toISOString().split('T')[0];
+            const stats = {};
+            if (payload.steps) stats.steps = parseInt(payload.steps);
+            if (payload.distance) stats.distance = parseFloat(payload.distance);
+            if (payload.calories) stats.calories = parseInt(payload.calories);
+            if (Object.keys(stats).length > 0) {
+                await upsertDailyStat(today, stats);
+            }
+        }
+        
+        // Handle iOS Shortcuts workout array
+        if (payload.workouts && Array.isArray(payload.workouts)) {
+            for (const workout of payload.workouts) {
+                await addWorkout(workout);
+            }
+        }
+        
+        // Handle daily array format from Shortcuts
+        if (payload.daily && Array.isArray(payload.daily)) {
+            for (const day of payload.daily) {
+                const stats = {};
+                if (day.steps) stats.steps = parseInt(day.steps);
+                if (day.distance) stats.distance = parseFloat(day.distance);
+                if (day.calories) stats.calories = parseInt(day.calories);
+                if (Object.keys(stats).length > 0) {
+                    await upsertDailyStat(day.date || new Date().toISOString().split('T')[0], stats);
+                }
+            }
+        }
         
         // Process metrics from Health Auto Export format
         if (payload.data && payload.data.metrics) {
@@ -293,6 +326,85 @@ app.get('/api/debug/sync-logs', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// GET /shortcut - Setup instructions for iOS Shortcut
+app.get('/shortcut', (req, res) => {
+    const webhookUrl = `${req.protocol}://${req.get('host')}/api/webhook/health`;
+    res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fit Map - Shortcut Setup</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; margin: 0; line-height: 1.6; }
+        h1 { color: #ff6b35; font-size: 24px; }
+        h2 { color: #888; font-size: 18px; margin-top: 30px; }
+        .step { background: #161616; border-radius: 12px; padding: 16px; margin: 12px 0; border-left: 3px solid #ff6b35; }
+        .step-num { background: #ff6b35; color: #000; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; margin-right: 8px; }
+        code { background: #222; padding: 8px 12px; border-radius: 6px; display: block; margin: 10px 0; word-break: break-all; color: #00d26a; font-size: 13px; }
+        .copy-btn { background: #333; border: none; color: #fff; padding: 8px 16px; border-radius: 6px; margin-top: 8px; }
+        ul { padding-left: 20px; }
+        li { margin: 8px 0; }
+        .important { background: #2a1a00; border: 1px solid #ff6b35; border-radius: 8px; padding: 12px; margin: 16px 0; }
+    </style>
+</head>
+<body>
+    <h1>📱 Fit Map Shortcut Setup</h1>
+    
+    <div class="important">
+        <strong>Webhook URL (copy this):</strong>
+        <code id="webhook">${webhookUrl}</code>
+        <button class="copy-btn" onclick="navigator.clipboard.writeText('${webhookUrl}')">📋 Copy URL</button>
+    </div>
+
+    <h2>Create the Shortcut</h2>
+    
+    <div class="step">
+        <span class="step-num">1</span> Open <strong>Shortcuts</strong> app → tap <strong>+</strong> → name it "Sync to Fit Map"
+    </div>
+    
+    <div class="step">
+        <span class="step-num">2</span> Add action: <strong>Find Health Samples</strong>
+        <ul>
+            <li>Type: <strong>Step Count</strong></li>
+            <li>Start Date: <strong>Start of Today</strong></li>
+            <li>End Date: <strong>Now</strong></li>
+        </ul>
+    </div>
+    
+    <div class="step">
+        <span class="step-num">3</span> Add action: <strong>Get Contents of URL</strong>
+        <ul>
+            <li>URL: <code style="display:inline; padding:4px 8px;">${webhookUrl}</code></li>
+            <li>Method: <strong>POST</strong></li>
+            <li>Request Body: <strong>JSON</strong></li>
+            <li>Add field: <strong>steps</strong> = Health Samples (from step 2)</li>
+        </ul>
+    </div>
+    
+    <div class="step">
+        <span class="step-num">4</span> Run the shortcut → grant Health permissions → done!
+    </div>
+
+    <h2>Add More Data (Optional)</h2>
+    <p>Repeat step 2 for each data type, then add to the JSON body:</p>
+    <ul>
+        <li><strong>Walking + Running Distance</strong> → field: <code style="display:inline">distance</code></li>
+        <li><strong>Active Energy</strong> → field: <code style="display:inline">calories</code></li>
+        <li><strong>Workouts</strong> → field: <code style="display:inline">workouts</code></li>
+    </ul>
+
+    <h2>Auto-Run (Optional)</h2>
+    <p>Automation tab → Time of Day → Hourly → Run "Sync to Fit Map" → disable "Ask Before Running"</p>
+    
+    <br><br>
+    <a href="/" style="color: #ff6b35;">← Back to Fit Map</a>
+</body>
+</html>
+    `);
 });
 
 // ============== HELPER FUNCTIONS ==============

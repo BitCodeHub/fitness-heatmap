@@ -574,11 +574,52 @@
             <div id="map"></div>
             
             <!-- Import Panel -->
-            <div class="import-panel">
-                <span class="import-text">Import your Apple Health data</span>
+            <div class="import-panel" id="importPanel">
+                <span class="import-text">Auto-sync from Apple Watch or import manually</span>
                 <input type="file" id="fileInput" accept=".gpx,.xml,.json" style="display: none;">
-                <button class="import-btn" onclick="document.getElementById('fileInput').click()">📁 Import Data</button>
+                <button class="import-btn" onclick="document.getElementById('fileInput').click()">📁 Import</button>
                 <button class="demo-btn" id="loadDemoBtn">Load Demo</button>
+                <button class="demo-btn" id="showSetupBtn">⚙️ Setup Sync</button>
+            </div>
+            
+            <!-- Setup Modal -->
+            <div id="setupModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+                <div style="background: #161616; border-radius: 16px; padding: 32px; max-width: 500px; margin: 20px; border: 1px solid #333;">
+                    <h2 style="margin-bottom: 20px; color: #ff6b35;">⚙️ Auto-Sync Setup</h2>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 14px; color: #fff; margin-bottom: 8px;">Step 1: Install Health Auto Export</h3>
+                        <p style="font-size: 13px; color: #888; margin-bottom: 12px;">Download from the App Store ($2.99)</p>
+                        <a href="https://apps.apple.com/app/health-auto-export-json-csv/id1115567069" target="_blank" style="display: inline-block; padding: 10px 20px; background: #3b82f6; color: #fff; border-radius: 8px; text-decoration: none; font-size: 13px;">📱 Open App Store</a>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 14px; color: #fff; margin-bottom: 8px;">Step 2: Configure Webhook URL</h3>
+                        <p style="font-size: 13px; color: #888; margin-bottom: 12px;">In the app, set this as your REST API endpoint:</p>
+                        <div style="background: #0a0a0a; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #00d26a; word-break: break-all;" id="webhookUrl">
+                            Loading...
+                        </div>
+                        <button onclick="copyWebhookUrl()" style="margin-top: 8px; padding: 8px 16px; background: #333; border: none; color: #fff; border-radius: 6px; cursor: pointer; font-size: 12px;">📋 Copy URL</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 14px; color: #fff; margin-bottom: 8px;">Step 3: Select Data to Sync</h3>
+                        <p style="font-size: 13px; color: #888;">Enable these in Health Auto Export:</p>
+                        <ul style="font-size: 13px; color: #ccc; margin-top: 8px; padding-left: 20px;">
+                            <li>✅ Workouts (with route data)</li>
+                            <li>✅ Steps</li>
+                            <li>✅ Walking + Running Distance</li>
+                            <li>✅ Active Energy (Calories)</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 14px; color: #fff; margin-bottom: 8px;">Step 4: Enable Auto Export</h3>
+                        <p style="font-size: 13px; color: #888;">Set the app to automatically export on a schedule (hourly recommended)</p>
+                    </div>
+                    
+                    <button onclick="closeSetupModal()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); border: none; color: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">Got it!</button>
+                </div>
             </div>
             
             <!-- Map Controls -->
@@ -1039,6 +1080,109 @@
                     }
                 };
                 reader.readAsText(file);
+            }
+        });
+        
+        // ============== API INTEGRATION ==============
+        
+        const API_BASE = window.location.origin;
+        
+        // Fetch workouts from API
+        async function fetchWorkouts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/workouts`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        loadWorkouts(data);
+                        document.querySelector('.import-panel').style.display = 'none';
+                        updateSyncStatus('Live');
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.log('API not available, using demo mode');
+            }
+            return false;
+        }
+        
+        // Fetch stats from API
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/stats`);
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('totalDistance').innerHTML = 
+                        `${stats.totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
+                    document.getElementById('totalSteps').textContent = formatNumber(stats.totalSteps);
+                    document.getElementById('totalWorkouts').textContent = stats.totalWorkouts;
+                    document.getElementById('totalCalories').textContent = formatNumber(stats.totalCalories);
+                    
+                    if (stats.lastSync) {
+                        updateSyncStatus('Synced ' + new Date(stats.lastSync).toLocaleTimeString());
+                    }
+                }
+            } catch (err) {
+                console.log('Could not fetch stats');
+            }
+        }
+        
+        // Update sync status display
+        function updateSyncStatus(status) {
+            let syncEl = document.getElementById('syncStatus');
+            if (!syncEl) {
+                syncEl = document.createElement('div');
+                syncEl.id = 'syncStatus';
+                syncEl.style.cssText = 'font-size: 11px; color: #00d26a; margin-top: 8px; display: flex; align-items: center; gap: 6px;';
+                document.querySelector('.subtitle').after(syncEl);
+            }
+            syncEl.innerHTML = `<span style="width: 8px; height: 8px; background: #00d26a; border-radius: 50%; display: inline-block;"></span> ${status}`;
+        }
+        
+        // Auto-refresh data every 30 seconds
+        function startAutoRefresh() {
+            setInterval(async () => {
+                const hasData = await fetchWorkouts();
+                if (hasData) {
+                    await fetchStats();
+                }
+            }, 30000);
+        }
+        
+        // Initialize - try API first, fall back to demo
+        async function init() {
+            const hasApiData = await fetchWorkouts();
+            if (hasApiData) {
+                await fetchStats();
+                startAutoRefresh();
+            }
+            // If no API data, user can click "Load Demo" or import manually
+        }
+        
+        // Run on page load
+        init();
+        
+        // Setup modal functions
+        document.getElementById('showSetupBtn').addEventListener('click', () => {
+            document.getElementById('setupModal').style.display = 'flex';
+            document.getElementById('webhookUrl').textContent = `${window.location.origin}/api/webhook/health`;
+        });
+        
+        function closeSetupModal() {
+            document.getElementById('setupModal').style.display = 'none';
+        }
+        
+        function copyWebhookUrl() {
+            const url = `${window.location.origin}/api/webhook/health`;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('Webhook URL copied to clipboard!');
+            });
+        }
+        
+        // Close modal on background click
+        document.getElementById('setupModal').addEventListener('click', (e) => {
+            if (e.target.id === 'setupModal') {
+                closeSetupModal();
             }
         });
     </script>

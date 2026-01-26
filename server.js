@@ -329,30 +329,64 @@ app.delete('/api/workouts/:id', (req, res) => {
 // ============== HELPER FUNCTIONS ==============
 
 function processMetric(data, metric) {
-    const date = metric.date?.split('T')[0] || metric.startDate?.split('T')[0] || new Date().toISOString().split('T')[0];
-    const value = metric.qty || metric.value || metric.sum || metric.avg || 0;
     const name = (metric.name || metric.type || metric.identifier || '').toLowerCase();
     
+    // Health Auto Export sends metrics with a "data" array of readings
+    if (metric.data && Array.isArray(metric.data)) {
+        // Aggregate by day
+        const dailyTotals = {};
+        
+        metric.data.forEach(reading => {
+            // Parse date - format: "2026-01-24 00:13:00 -0800"
+            let dateStr = reading.date || reading.startDate;
+            if (dateStr) {
+                // Extract just the date part (YYYY-MM-DD)
+                const match = dateStr.match(/(\d{4}-\d{2}-\d{2})/);
+                if (match) {
+                    dateStr = match[1];
+                } else {
+                    dateStr = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                dateStr = new Date().toISOString().split('T')[0];
+            }
+            
+            if (!dailyTotals[dateStr]) {
+                dailyTotals[dateStr] = 0;
+            }
+            dailyTotals[dateStr] += parseFloat(reading.qty || reading.value || 0);
+        });
+        
+        // Now process each day's total
+        Object.entries(dailyTotals).forEach(([date, total]) => {
+            processMetricValue(data, name, date, total, metric.units);
+        });
+    } else {
+        // Single value metric
+        const date = metric.date?.split('T')[0] || metric.startDate?.split('T')[0] || new Date().toISOString().split('T')[0];
+        const value = metric.qty || metric.value || metric.sum || metric.avg || 0;
+        processMetricValue(data, name, date, value, metric.units);
+    }
+}
+
+function processMetricValue(data, name, date, value, units) {
     // Steps
-    if (name.includes('step') || name.includes('HKQuantityTypeIdentifierStepCount'.toLowerCase())) {
-        addDailyStats(data, { date, steps: value });
+    if (name.includes('step_count') || name.includes('step') && !name.includes('length')) {
+        addDailyStats(data, { date, steps: Math.round(value) });
     }
     // Distance
-    else if (name.includes('distance') || name.includes('HKQuantityTypeIdentifierDistanceWalkingRunning'.toLowerCase())) {
-        // Convert meters to miles if needed
+    else if (name.includes('walking_running_distance') || name.includes('distance')) {
+        // Already in miles based on units from Health Auto Export
         let distanceMiles = parseFloat(value);
-        if (distanceMiles > 100) { // Likely meters
+        // If units suggest meters, convert
+        if (units && (units.includes('m') && !units.includes('mi'))) {
             distanceMiles = distanceMiles * 0.000621371;
         }
         addDailyStats(data, { date, distance: distanceMiles });
     }
     // Calories
-    else if (name.includes('energy') || name.includes('calorie') || name.includes('HKQuantityTypeIdentifierActiveEnergyBurned'.toLowerCase())) {
-        addDailyStats(data, { date, calories: value });
-    }
-    // Flights climbed
-    else if (name.includes('flight') || name.includes('floor')) {
-        // Store as additional stat if needed
+    else if (name.includes('energy') || name.includes('calorie')) {
+        addDailyStats(data, { date, calories: Math.round(value) });
     }
 }
 
@@ -435,9 +469,12 @@ function addDailyStats(data, stats) {
         data.dailyStats.push(existing);
     }
     
+    // Update with the latest/highest value (Health data is cumulative)
     if (stats.steps) existing.steps = Math.max(existing.steps, parseInt(stats.steps));
     if (stats.distance) existing.distance = Math.max(existing.distance, parseFloat(stats.distance));
     if (stats.calories) existing.calories = Math.max(existing.calories, parseInt(stats.calories));
+    
+    console.log(`Daily stats updated for ${date}: steps=${existing.steps}, distance=${existing.distance.toFixed(2)}mi, calories=${existing.calories}`);
 }
 
 // ============== START SERVER ==============

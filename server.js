@@ -281,6 +281,20 @@ app.delete('/api/daily/:date', async (req, res) => {
     }
 });
 
+// GET /api/debug/sync-logs - See raw sync payloads
+app.get('/api/debug/sync-logs', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 5;
+        const result = await pool.query(
+            'SELECT id, synced_at, payload FROM fitness_sync_log ORDER BY synced_at DESC LIMIT $1',
+            [limit]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ============== HELPER FUNCTIONS ==============
 
 async function processMetric(metric) {

@@ -140,34 +140,119 @@ app.get('/api/daily', (req, res) => {
 
 // ============== WEBHOOK ENDPOINTS (for Health Auto Export) ==============
 
+// GET /api/debug - See raw incoming data
+app.get('/api/debug', (req, res) => {
+    try {
+        const debugFile = './debug-payloads.json';
+        if (fs.existsSync(debugFile)) {
+            const payloads = JSON.parse(fs.readFileSync(debugFile, 'utf8'));
+            res.json(payloads);
+        } else {
+            res.json([]);
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/webhook/health - Receive health data from iOS app
 app.post('/api/webhook/health', (req, res) => {
     try {
         console.log('Received health webhook:', new Date().toISOString());
         const payload = req.body;
+        
+        // Save raw payload for debugging
+        const debugFile = './debug-payloads.json';
+        let debugData = [];
+        if (fs.existsSync(debugFile)) {
+            try { debugData = JSON.parse(fs.readFileSync(debugFile, 'utf8')); } catch(e) {}
+        }
+        debugData.unshift({ 
+            receivedAt: new Date().toISOString(), 
+            payload: payload,
+            headers: req.headers
+        });
+        // Keep only last 10 payloads
+        debugData = debugData.slice(0, 10);
+        fs.writeFileSync(debugFile, JSON.stringify(debugData, null, 2));
+        
         const data = readData();
         
-        // Process different data types from Health Auto Export
+        // Health Auto Export sends data in various formats - handle all of them
+        
+        // Format 1: data.metrics array (Health Auto Export standard)
         if (payload.data && payload.data.metrics) {
             payload.data.metrics.forEach(metric => {
                 processMetric(data, metric);
             });
         }
         
-        // Direct workout data
-        if (payload.workouts) {
+        // Format 2: data.workouts array
+        if (payload.data && payload.data.workouts) {
+            payload.data.workouts.forEach(workout => {
+                addWorkout(data, workout);
+            });
+        }
+        
+        // Format 3: metrics at root level (array)
+        if (payload.metrics && Array.isArray(payload.metrics)) {
+            payload.metrics.forEach(metric => {
+                processMetric(data, metric);
+            });
+        }
+        
+        // Format 4: workouts at root level (array)
+        if (payload.workouts && Array.isArray(payload.workouts)) {
             payload.workouts.forEach(workout => {
                 addWorkout(data, workout);
             });
         }
         
-        // Direct steps/distance data
+        // Format 5: Single workout object
+        if (payload.workoutActivityType || payload.activityType) {
+            addWorkout(data, payload);
+        }
+        
+        // Format 6: Health Auto Export specific format
+        if (payload.HKQuantityTypeIdentifierStepCount || payload.stepCount) {
+            addDailyStats(data, {
+                date: payload.date || payload.startDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+                steps: payload.HKQuantityTypeIdentifierStepCount || payload.stepCount || payload.steps
+            });
+        }
+        
+        if (payload.HKQuantityTypeIdentifierDistanceWalkingRunning || payload.distanceWalkingRunning) {
+            addDailyStats(data, {
+                date: payload.date || payload.startDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+                distance: payload.HKQuantityTypeIdentifierDistanceWalkingRunning || payload.distanceWalkingRunning || payload.distance
+            });
+        }
+        
+        if (payload.HKQuantityTypeIdentifierActiveEnergyBurned || payload.activeEnergyBurned) {
+            addDailyStats(data, {
+                date: payload.date || payload.startDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+                calories: payload.HKQuantityTypeIdentifierActiveEnergyBurned || payload.activeEnergyBurned || payload.calories
+            });
+        }
+        
+        // Format 7: Direct steps/distance/calories at root
         if (payload.steps || payload.distance || payload.calories) {
             addDailyStats(data, {
                 date: payload.date || new Date().toISOString().split('T')[0],
                 steps: payload.steps,
                 distance: payload.distance,
                 calories: payload.calories
+            });
+        }
+        
+        // Format 8: Array at root level (list of metrics or workouts)
+        if (Array.isArray(payload)) {
+            payload.forEach(item => {
+                if (item.workoutActivityType || item.activityType || item.type === 'workout') {
+                    addWorkout(data, item);
+                } else if (item.name || item.qty || item.value) {
+                    processMetric(data, item);
+                }
             });
         }
         
@@ -244,21 +329,30 @@ app.delete('/api/workouts/:id', (req, res) => {
 // ============== HELPER FUNCTIONS ==============
 
 function processMetric(data, metric) {
-    const date = metric.date?.split('T')[0] || new Date().toISOString().split('T')[0];
+    const date = metric.date?.split('T')[0] || metric.startDate?.split('T')[0] || new Date().toISOString().split('T')[0];
+    const value = metric.qty || metric.value || metric.sum || metric.avg || 0;
+    const name = (metric.name || metric.type || metric.identifier || '').toLowerCase();
     
-    switch (metric.name) {
-        case 'step_count':
-        case 'steps':
-            addDailyStats(data, { date, steps: metric.qty || metric.value });
-            break;
-        case 'distance_walking_running':
-        case 'distance':
-            addDailyStats(data, { date, distance: metric.qty || metric.value });
-            break;
-        case 'active_energy':
-        case 'calories':
-            addDailyStats(data, { date, calories: metric.qty || metric.value });
-            break;
+    // Steps
+    if (name.includes('step') || name.includes('HKQuantityTypeIdentifierStepCount'.toLowerCase())) {
+        addDailyStats(data, { date, steps: value });
+    }
+    // Distance
+    else if (name.includes('distance') || name.includes('HKQuantityTypeIdentifierDistanceWalkingRunning'.toLowerCase())) {
+        // Convert meters to miles if needed
+        let distanceMiles = parseFloat(value);
+        if (distanceMiles > 100) { // Likely meters
+            distanceMiles = distanceMiles * 0.000621371;
+        }
+        addDailyStats(data, { date, distance: distanceMiles });
+    }
+    // Calories
+    else if (name.includes('energy') || name.includes('calorie') || name.includes('HKQuantityTypeIdentifierActiveEnergyBurned'.toLowerCase())) {
+        addDailyStats(data, { date, calories: value });
+    }
+    // Flights climbed
+    else if (name.includes('flight') || name.includes('floor')) {
+        // Store as additional stat if needed
     }
 }
 

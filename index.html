@@ -1115,16 +1115,30 @@
                     document.getElementById('totalDistance').innerHTML = 
                         `${stats.totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
                     document.getElementById('totalSteps').textContent = formatNumber(stats.totalSteps);
-                    document.getElementById('totalWorkouts').textContent = stats.totalWorkouts;
+                    document.getElementById('totalWorkouts').textContent = stats.totalDays || stats.totalWorkouts;
                     document.getElementById('totalCalories').textContent = formatNumber(stats.totalCalories);
+                    
+                    // Update workout count label to "Days" if we have daily data
+                    if (stats.totalDays > 0) {
+                        const label = document.querySelector('#totalWorkouts').closest('.stat-card').querySelector('.stat-label');
+                        if (label) label.textContent = 'Days Tracked';
+                    }
                     
                     if (stats.lastSync) {
                         updateSyncStatus('Synced ' + new Date(stats.lastSync).toLocaleTimeString());
                     }
+                    
+                    // Hide import panel if we have data
+                    if (stats.totalSteps > 0 || stats.totalDistance > 0) {
+                        document.querySelector('.import-panel').style.display = 'none';
+                    }
+                    
+                    return true;
                 }
             } catch (err) {
                 console.log('Could not fetch stats');
             }
+            return false;
         }
         
         // Update sync status display

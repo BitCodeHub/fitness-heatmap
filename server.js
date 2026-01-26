@@ -89,15 +89,34 @@ app.get('/api/stats', (req, res) => {
     try {
         const data = readData();
         const workouts = data.workouts || [];
+        const dailyStats = data.dailyStats || [];
         
+        // Calculate totals from daily stats (Health Auto Export data)
+        const dailyTotals = {
+            steps: dailyStats.reduce((sum, d) => sum + (d.steps || 0), 0),
+            distance: dailyStats.reduce((sum, d) => sum + (d.distance || 0), 0),
+            calories: dailyStats.reduce((sum, d) => sum + (d.calories || 0), 0)
+        };
+        
+        // Calculate totals from workouts
+        const workoutTotals = {
+            steps: workouts.reduce((sum, w) => sum + (w.steps || 0), 0),
+            distance: workouts.reduce((sum, w) => sum + (w.distance || 0), 0),
+            calories: workouts.reduce((sum, w) => sum + (w.calories || 0), 0),
+            duration: workouts.reduce((sum, w) => sum + (w.duration || 0), 0)
+        };
+        
+        // Use the higher of daily stats or workout totals (avoid double counting)
         const stats = {
             totalWorkouts: workouts.length,
-            totalDistance: workouts.reduce((sum, w) => sum + (w.distance || 0), 0),
-            totalSteps: workouts.reduce((sum, w) => sum + (w.steps || 0), 0),
-            totalCalories: workouts.reduce((sum, w) => sum + (w.calories || 0), 0),
-            totalDuration: workouts.reduce((sum, w) => sum + (w.duration || 0), 0),
+            totalDistance: Math.max(dailyTotals.distance, workoutTotals.distance),
+            totalSteps: Math.max(dailyTotals.steps, workoutTotals.steps),
+            totalCalories: Math.max(dailyTotals.calories, workoutTotals.calories),
+            totalDuration: workoutTotals.duration,
+            totalDays: dailyStats.length,
             lastSync: data.lastSync,
-            byType: {}
+            byType: {},
+            daily: dailyStats.slice(0, 7) // Last 7 days
         };
         
         // Stats by type

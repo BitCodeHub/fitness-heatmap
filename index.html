@@ -663,7 +663,7 @@
         position: fixed;
         top: 20px;
         left: 20px;
-        z-index: 9999;
+        z-index: 99999;
         background: #FF6B35;
         color: white;
         border: none;
@@ -674,6 +674,9 @@
         cursor: pointer;
         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         display: none;
+        pointer-events: auto;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     " ontouchstart="
         this.style.transform = 'scale(0.95)';
         this.style.background = '#FF8A55';
@@ -1558,30 +1561,56 @@
         });
     </script>
 
-    <!-- Mobile Toggle - Always Visible for Testing -->
-    <div style="position: fixed; top: 20px; left: 20px; z-index: 9999; display: block !important;">
-        <button 
-            id="mobileToggle"
-            style="
-                width: 56px;
-                height: 56px;
-                background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-                border-radius: 50%;
-                border: none;
-                color: white;
-                font-size: 24px;
-                cursor: pointer;
-                box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-            "
-            ontouchstart="this.style.transform='scale(0.95)'"
-            ontouchend="this.style.transform='scale(1)'; window.toggleSidebar && window.toggleSidebar(); console.log('Direct touch event fired!');"
-        >
-            <span id="toggleIcon" style="pointer-events: none;">📊</span>
-        </button>
-    </div>
+    <!-- Backup: Attach listeners via JavaScript too -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('mobileToggle');
+            if (btn) {
+                console.log('✅ Mobile toggle button found, attaching backup listeners');
+                
+                // Remove any existing listeners to avoid conflicts
+                btn.replaceWith(btn.cloneNode(true));
+                const cleanBtn = document.getElementById('mobileToggle');
+                
+                cleanBtn.addEventListener('touchstart', function(e) {
+                    console.log('📱 JS touchstart fired');
+                    this.style.transform = 'scale(0.95)';
+                    this.style.background = '#FF8A55';
+                    alert('Touch started! (JS listener)');
+                }, {passive: false});
+                
+                cleanBtn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('📱 JS touchend fired');
+                    this.style.transform = 'scale(1)';
+                    this.style.background = '#FF6B35';
+                    alert('Touch ended! (JS listener)');
+                    
+                    const sidebar = document.querySelector('.sidebar');
+                    if (!sidebar) {
+                        alert('ERROR: Sidebar not found');
+                        return;
+                    }
+                    sidebar.classList.toggle('show');
+                    alert('Sidebar toggled! Has show class: ' + sidebar.classList.contains('show'));
+                }, {passive: false});
+                
+                cleanBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🖱️ JS click fired');
+                    alert('Click fired! (JS listener)');
+                    const sidebar = document.querySelector('.sidebar');
+                    if (sidebar) {
+                        sidebar.classList.toggle('show');
+                    }
+                });
+                
+                console.log('✅ All backup listeners attached');
+            } else {
+                console.error('❌ Mobile toggle button NOT found in DOM');
+            }
+        });
+    </script>
 
 </body>
 </html>

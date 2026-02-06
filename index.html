@@ -396,34 +396,9 @@
         }
         
         /* Import Panel */
-        /* Menu Button */
-        .menu-button {
-            position: absolute;
-            top: 80px;
-            right: 20px;
-            z-index: 1100;
-            background: #161616;
-            border: 1px solid #333;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 20px;
-            color: #fff;
-            transition: all 0.2s;
-        }
-        
-        .menu-button:hover {
-            background: #222;
-            transform: scale(1.05);
-        }
-        
         .menu-dropdown {
             position: absolute;
-            top: 130px;
+            top: 280px;
             right: 20px;
             z-index: 1100;
             background: #161616;
@@ -819,11 +794,6 @@
             <div id="map"></div>
             
             <!-- Import Panel -->
-            <!-- Menu Button -->
-            <div class="menu-button" id="menuButton" onclick="toggleMenu()">
-                ⚙️
-            </div>
-            
             <!-- Menu Dropdown -->
             <div class="menu-dropdown" id="menuDropdown">
                 <input type="file" id="fileInput" accept=".gpx,.xml,.json" style="display: none;">
@@ -878,6 +848,7 @@
                 <button class="map-btn" id="zoomOut">−</button>
                 <button class="map-btn" id="toggleHeat">🔥</button>
                 <button class="map-btn" id="toggleSatellite">🛰️</button>
+                <button class="map-btn" id="menuButton" onclick="toggleMenu()">⚙️</button>
             </div>
             
             <!-- World View Button -->

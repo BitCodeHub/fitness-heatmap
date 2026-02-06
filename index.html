@@ -1442,6 +1442,13 @@
         // Run on page load
         init();
         
+        // Setup mobile toggle event listener
+        const mobileToggle = document.getElementById('mobileToggle');
+        if (mobileToggle) {
+            mobileToggle.addEventListener('click', toggleSidebar);
+            console.log('Mobile toggle event listener added');
+        }
+        
         // Setup modal functions
         document.getElementById('showSetupBtn').addEventListener('click', () => {
             document.getElementById('setupModal').style.display = 'flex';

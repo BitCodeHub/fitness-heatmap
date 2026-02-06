@@ -608,6 +608,12 @@
         }
         
         @media (max-width: 768px) {
+            #mobileToggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+            
             .mobile-toggle {
                 display: flex !important;
                 align-items: center;
@@ -652,9 +658,52 @@
     </style>
 </head>
 <body>
+    <!-- Mobile Toggle Button - COMPLETELY INLINE (no function dependencies) -->
+    <button id="mobileToggle" style="
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 9999;
+        background: #FF6B35;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        display: none;
+    " ontouchstart="
+        this.style.transform = 'scale(0.95)';
+        console.log('👆 TOUCH START - Button pressed');
+    " ontouchend="
+        event.preventDefault();
+        this.style.transform = 'scale(1)';
+        console.log('🎯 TOUCH END - Toggling sidebar');
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) {
+            console.error('❌ Sidebar not found!');
+            alert('Error: Sidebar not found');
+            return;
+        }
+        console.log('Sidebar current classes:', sidebar.className);
+        sidebar.classList.toggle('show');
+        console.log('Sidebar new classes:', sidebar.className);
+        console.log('✅ Toggle complete');
+    " onclick="
+        event.preventDefault();
+        console.log('🖱️ CLICK - Toggling sidebar (fallback)');
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+        sidebar.classList.toggle('show');
+    ">
+        🏃
+    </button>
+
     <div class="app-container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <div class="logo-icon">🏃</div>

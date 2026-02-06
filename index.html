@@ -519,6 +519,7 @@
             z-index: 2000;
             box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
             transition: transform 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .mobile-toggle:active {
@@ -527,6 +528,7 @@
         
         .mobile-toggle span {
             display: block;
+            pointer-events: none;
         }
         
         /* Daily Breakdown */
@@ -810,30 +812,28 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
         // Mobile sidebar toggle
-        function toggleSidebar() {
+        window.toggleSidebar = function() {
             const sidebar = document.querySelector('.sidebar');
             const toggleIcon = document.getElementById('toggleIcon');
-            const isMobile = window.innerWidth <= 768;
+            const button = document.getElementById('mobileToggle');
             
-            console.log('Toggle clicked', {
+            console.log('✅ Toggle clicked!', {
                 hasShow: sidebar.classList.contains('show'),
-                isMobile: isMobile,
-                width: window.innerWidth
+                width: window.innerWidth,
+                buttonExists: !!button,
+                sidebarExists: !!sidebar
             });
             
             if (sidebar.classList.contains('show')) {
                 sidebar.classList.remove('show');
-                toggleIcon.textContent = '📊';
-                console.log('Hiding sidebar');
+                if (toggleIcon) toggleIcon.textContent = '📊';
+                console.log('➡️ Hiding sidebar, showing map');
             } else {
                 sidebar.classList.add('show');
-                toggleIcon.textContent = '🗺️';
-                console.log('Showing sidebar');
+                if (toggleIcon) toggleIcon.textContent = '🗺️';
+                console.log('⬅️ Showing sidebar, hiding map');
             }
-        }
-        
-        // Make toggleSidebar available globally
-        window.toggleSidebar = toggleSidebar;
+        };
         
         // Initialize mobile detection
         function initMobile() {
@@ -1442,11 +1442,39 @@
         // Run on page load
         init();
         
-        // Setup mobile toggle event listener
-        const mobileToggle = document.getElementById('mobileToggle');
-        if (mobileToggle) {
-            mobileToggle.addEventListener('click', toggleSidebar);
-            console.log('Mobile toggle event listener added');
+        // Setup mobile toggle - multiple methods to ensure it works
+        function setupMobileToggle() {
+            const mobileToggle = document.getElementById('mobileToggle');
+            console.log('Setting up mobile toggle:', {
+                buttonExists: !!mobileToggle,
+                buttonVisible: mobileToggle ? window.getComputedStyle(mobileToggle).display : 'not found'
+            });
+            
+            if (mobileToggle) {
+                // Method 1: Click event
+                mobileToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('🔵 Button clicked via addEventListener');
+                    window.toggleSidebar();
+                });
+                
+                // Method 2: Touch event for mobile
+                mobileToggle.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    console.log('📱 Button touched via touchend');
+                    window.toggleSidebar();
+                });
+                
+                console.log('✅ Mobile toggle listeners attached');
+            } else {
+                console.error('❌ Mobile toggle button not found!');
+            }
+        }
+        
+        // Run setup immediately and after DOM loads
+        setupMobileToggle();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupMobileToggle);
         }
         
         // Setup modal functions

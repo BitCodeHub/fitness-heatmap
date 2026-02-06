@@ -1502,10 +1502,30 @@
         });
     </script>
 
-    <!-- Mobile Toggle -->
-    <button class="mobile-toggle" id="mobileToggle">
-        <span id="toggleIcon">📊</span>
-    </button>
+    <!-- Mobile Toggle - Always Visible for Testing -->
+    <div style="position: fixed; top: 20px; left: 20px; z-index: 9999; display: block !important;">
+        <button 
+            id="mobileToggle"
+            style="
+                width: 56px;
+                height: 56px;
+                background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+                border-radius: 50%;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            "
+            ontouchstart="this.style.transform='scale(0.95)'"
+            ontouchend="this.style.transform='scale(1)'; window.toggleSidebar && window.toggleSidebar(); console.log('Direct touch event fired!');"
+        >
+            <span id="toggleIcon" style="pointer-events: none;">📊</span>
+        </button>
+    </div>
 
 </body>
 </html>

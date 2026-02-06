@@ -1355,6 +1355,12 @@
             const fromDate = document.getElementById('dateFrom').value;
             const toDate = document.getElementById('dateTo').value;
             
+            // Only apply filter if BOTH dates are selected OR both are empty (show all)
+            if ((fromDate && !toDate) || (!fromDate && toDate)) {
+                console.log('Waiting for both From and To dates...');
+                return; // Don't filter until both dates are selected
+            }
+            
             const from = fromDate ? new Date(fromDate + 'T00:00:00') : new Date('1900-01-01');
             const to = toDate ? new Date(toDate + 'T23:59:59') : new Date('2100-12-31');
             
@@ -1378,20 +1384,20 @@
                 });
                 
                 // Recalculate totals from filtered daily data
-                const totalSteps = filteredDaily.reduce((sum, d) => sum + d.steps, 0);
-                const totalDistance = filteredDaily.reduce((sum, d) => sum + d.distance, 0);
-                const totalCalories = filteredDaily.reduce((sum, d) => sum + d.calories, 0);
+                const totalSteps = filteredDaily.reduce((sum, d) => sum + (d.steps || 0), 0);
+                const totalDistance = filteredDaily.reduce((sum, d) => sum + (d.distance || 0), 0);
+                const totalCalories = filteredDaily.reduce((sum, d) => sum + (d.calories || 0), 0);
                 
                 // Update stats display
                 document.getElementById('totalSteps').textContent = formatNumber(totalSteps);
                 document.getElementById('totalDistance').innerHTML = `${totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
-                document.getElementById('totalCalories').textContent = formatNumber(totalCalories);
+                document.getElementById('totalCalories').textContent = totalCalories > 0 ? formatNumber(totalCalories) : '0';
                 document.getElementById('totalWorkouts').textContent = filteredDaily.length;
                 
                 // Update daily list
                 updateDailyList(filteredDaily);
                 
-                console.log(`Stats recalculated: ${totalSteps} steps, ${totalDistance.toFixed(1)} mi (${filteredDaily.length} days)`);
+                console.log(`Stats recalculated: ${totalSteps} steps, ${totalDistance.toFixed(1)} mi, ${totalCalories} cal (${filteredDaily.length} days)`);
             }
         }
         

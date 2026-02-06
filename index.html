@@ -677,36 +677,6 @@
         pointer-events: auto;
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
-    " ontouchstart="
-        this.style.transform = 'scale(0.95)';
-        this.style.background = '#FF8A55';
-        console.log('👆 TOUCH START - Button pressed');
-        alert('Touch started!');
-    " ontouchend="
-        event.preventDefault();
-        this.style.transform = 'scale(1)';
-        this.style.background = '#FF6B35';
-        console.log('🎯 TOUCH END - Toggling sidebar');
-        alert('Touch ended - about to toggle');
-        const sidebar = document.querySelector('.sidebar');
-        if (!sidebar) {
-            console.error('❌ Sidebar not found!');
-            alert('ERROR: Sidebar not found!');
-            return;
-        }
-        console.log('Sidebar current classes:', sidebar.className);
-        const hadShow = sidebar.classList.contains('show');
-        sidebar.classList.toggle('show');
-        const hasShow = sidebar.classList.contains('show');
-        console.log('Sidebar new classes:', sidebar.className);
-        alert('Toggle complete! Show class: ' + hadShow + ' → ' + hasShow);
-        console.log('✅ Toggle complete');
-    " onclick="
-        event.preventDefault();
-        console.log('🖱️ CLICK - Toggling sidebar (fallback)');
-        const sidebar = document.querySelector('.sidebar');
-        if (!sidebar) return;
-        sidebar.classList.toggle('show');
     ">
         🏃
     </button>
@@ -1573,35 +1543,35 @@
                 const cleanBtn = document.getElementById('mobileToggle');
                 
                 cleanBtn.addEventListener('touchstart', function(e) {
-                    console.log('📱 JS touchstart fired');
+                    console.log('📱 Touchstart fired');
                     this.style.transform = 'scale(0.95)';
-                    this.style.background = '#FF8A55';
-                    alert('Touch started! (JS listener)');
-                }, {passive: false});
+                }, {passive: true});
                 
                 cleanBtn.addEventListener('touchend', function(e) {
                     e.preventDefault();
-                    console.log('📱 JS touchend fired');
+                    console.log('📱 Touchend fired - toggling sidebar');
                     this.style.transform = 'scale(1)';
-                    this.style.background = '#FF6B35';
-                    alert('Touch ended! (JS listener)');
                     
                     const sidebar = document.querySelector('.sidebar');
                     if (!sidebar) {
-                        alert('ERROR: Sidebar not found');
+                        console.error('❌ Sidebar not found');
                         return;
                     }
+                    
+                    const wasVisible = sidebar.classList.contains('show');
                     sidebar.classList.toggle('show');
-                    alert('Sidebar toggled! Has show class: ' + sidebar.classList.contains('show'));
+                    const isVisible = sidebar.classList.contains('show');
+                    
+                    console.log('✅ Sidebar toggled:', wasVisible ? 'visible→hidden' : 'hidden→visible');
                 }, {passive: false});
                 
                 cleanBtn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    console.log('🖱️ JS click fired');
-                    alert('Click fired! (JS listener)');
+                    console.log('🖱️ Click fired (desktop fallback)');
                     const sidebar = document.querySelector('.sidebar');
                     if (sidebar) {
                         sidebar.classList.toggle('show');
+                        console.log('✅ Sidebar toggled via click');
                     }
                 });
                 

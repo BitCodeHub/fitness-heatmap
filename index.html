@@ -1349,27 +1349,50 @@
         
         // Date range filtering
         let allWorkouts = []; // Store all workouts for filtering
+        let allDailyData = []; // Store all daily data for filtering
         
-        function applyDateRangeFilter() {
+        async function applyDateRangeFilter() {
             const fromDate = document.getElementById('dateFrom').value;
             const toDate = document.getElementById('dateTo').value;
-            
-            if (!fromDate && !toDate) {
-                // No filter, show all
-                loadWorkouts(allWorkouts);
-                return;
-            }
             
             const from = fromDate ? new Date(fromDate + 'T00:00:00') : new Date('1900-01-01');
             const to = toDate ? new Date(toDate + 'T23:59:59') : new Date('2100-12-31');
             
-            const filtered = allWorkouts.filter(w => {
-                const workoutDate = new Date(w.date);
-                return workoutDate >= from && workoutDate <= to;
-            });
+            // Filter workouts
+            if (!fromDate && !toDate) {
+                loadWorkouts(allWorkouts);
+            } else {
+                const filteredWorkouts = allWorkouts.filter(w => {
+                    const workoutDate = new Date(w.date);
+                    return workoutDate >= from && workoutDate <= to;
+                });
+                loadWorkouts(filteredWorkouts);
+                console.log(`Filtered ${filteredWorkouts.length} of ${allWorkouts.length} workouts`);
+            }
             
-            loadWorkouts(filtered);
-            console.log(`Filtered ${filtered.length} of ${allWorkouts.length} workouts (${fromDate || 'any'} to ${toDate || 'any'})`);
+            // Filter daily data and recalculate stats
+            if (allDailyData.length > 0) {
+                const filteredDaily = (!fromDate && !toDate) ? allDailyData : allDailyData.filter(d => {
+                    const dailyDate = new Date(d.date + 'T00:00:00');
+                    return dailyDate >= from && dailyDate <= to;
+                });
+                
+                // Recalculate totals from filtered daily data
+                const totalSteps = filteredDaily.reduce((sum, d) => sum + d.steps, 0);
+                const totalDistance = filteredDaily.reduce((sum, d) => sum + d.distance, 0);
+                const totalCalories = filteredDaily.reduce((sum, d) => sum + d.calories, 0);
+                
+                // Update stats display
+                document.getElementById('totalSteps').textContent = formatNumber(totalSteps);
+                document.getElementById('totalDistance').innerHTML = `${totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
+                document.getElementById('totalCalories').textContent = formatNumber(totalCalories);
+                document.getElementById('totalWorkouts').textContent = filteredDaily.length;
+                
+                // Update daily list
+                updateDailyList(filteredDaily);
+                
+                console.log(`Stats recalculated: ${totalSteps} steps, ${totalDistance.toFixed(1)} mi (${filteredDaily.length} days)`);
+            }
         }
         
         document.getElementById('dateFrom').addEventListener('change', applyDateRangeFilter);
@@ -1465,6 +1488,50 @@
             return false;
         }
         
+        // Fetch daily data from API
+        async function fetchDailyData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/daily`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.length > 0) {
+                        allDailyData = data; // Store for filtering
+                        console.log(`Fetched ${data.length} days of data`);
+                        
+                        // Update daily breakdown list
+                        updateDailyList(data);
+                        
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.log('Could not fetch daily data');
+            }
+            return false;
+        }
+        
+        // Update daily breakdown list
+        function updateDailyList(dailyData) {
+            const list = document.getElementById('dailyList');
+            if (!list) return;
+            
+            // Sort by date descending
+            const sorted = dailyData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            list.innerHTML = sorted.map(day => `
+                <div style="padding: 12px; border-bottom: 1px solid #222;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 13px; color: #fff; font-weight: 500;">${new Date(day.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</span>
+                        <span style="font-size: 12px; color: #00d26a; font-weight: 600;">${formatNumber(day.steps)} steps</span>
+                    </div>
+                    <div style="display: flex; gap: 16px; font-size: 11px; color: #888;">
+                        <span>🚶 ${day.distance.toFixed(2)} mi</span>
+                        ${day.calories > 0 ? `<span>🔥 ${formatNumber(day.calories)} cal</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
         // Update sync status display
         function updateSyncStatus(status) {
             let syncEl = document.getElementById('syncStatus');
@@ -1480,10 +1547,11 @@
         // Auto-refresh data every 30 seconds
         function startAutoRefresh() {
             setInterval(async () => {
-                const hasData = await fetchWorkouts();
-                if (hasData) {
-                    await fetchStats();
-                }
+                await fetchWorkouts();
+                await fetchStats();
+                await fetchDailyData();
+                // Reapply filters to show updated data
+                await applyDateRangeFilter();
             }, 30000);
         }
         
@@ -1492,8 +1560,10 @@
             const hasWorkouts = await fetchWorkouts();
             // Always fetch stats (even without workouts, we may have daily step data)
             const hasStats = await fetchStats();
+            // Fetch daily data for date range filtering
+            const hasDailyData = await fetchDailyData();
             
-            if (hasWorkouts || hasStats) {
+            if (hasWorkouts || hasStats || hasDailyData) {
                 startAutoRefresh();
             }
             // If no API data, user can click "Load Demo" or import manually

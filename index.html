@@ -1350,6 +1350,7 @@
         // Date range filtering
         let allWorkouts = []; // Store all workouts for filtering
         let allDailyData = []; // Store all daily data for filtering
+        let originalStats = null; // Store original stats from API
         
         async function applyDateRangeFilter() {
             const fromDate = document.getElementById('dateFrom').value;
@@ -1376,9 +1377,24 @@
                 console.log(`Filtered ${filteredWorkouts.length} of ${allWorkouts.length} workouts`);
             }
             
-            // Filter daily data and recalculate stats
-            if (allDailyData.length > 0) {
-                const filteredDaily = (!fromDate && !toDate) ? allDailyData : allDailyData.filter(d => {
+            // Filter daily data and recalculate stats ONLY if a filter is active
+            if (!fromDate && !toDate) {
+                // No filter - restore original stats from API
+                if (originalStats) {
+                    document.getElementById('totalSteps').textContent = formatNumber(originalStats.totalSteps);
+                    document.getElementById('totalDistance').innerHTML = `${originalStats.totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
+                    document.getElementById('totalCalories').textContent = formatNumber(originalStats.totalCalories);
+                    document.getElementById('totalWorkouts').textContent = originalStats.totalDays || originalStats.totalWorkouts;
+                    console.log('Restored original stats (no filter active)');
+                }
+                
+                // Show all daily data
+                if (allDailyData.length > 0) {
+                    updateDailyList(allDailyData);
+                }
+            } else if (allDailyData.length > 0) {
+                // Filter is active - recalculate from filtered daily data
+                const filteredDaily = allDailyData.filter(d => {
                     const dailyDate = new Date(d.date + 'T00:00:00');
                     return dailyDate >= from && dailyDate <= to;
                 });
@@ -1465,6 +1481,8 @@
                 const response = await fetch(`${API_BASE}/api/stats`);
                 if (response.ok) {
                     const stats = await response.json();
+                    originalStats = stats; // Store original stats for when no filter is active
+                    
                     document.getElementById('totalDistance').innerHTML = 
                         `${stats.totalDistance.toFixed(1)}<span class="stat-unit"> mi</span>`;
                     document.getElementById('totalSteps').textContent = formatNumber(stats.totalSteps);

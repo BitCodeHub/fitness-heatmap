@@ -712,17 +712,21 @@
                 </div>
             </div>
             
-            <!-- Time Slider -->
+            <!-- Date Range Filter -->
             <div class="time-filter">
                 <div class="filter-header">
-                    <span class="filter-title">Time Range</span>
-                    <span class="filter-value" id="timeRangeValue">All Time</span>
+                    <span class="filter-title">Date Range</span>
+                    <button class="filter-value" id="clearDateRange" style="background: none; border: none; color: #ff6b35; cursor: pointer; font-size: 12px; padding: 4px 8px;">Clear</button>
                 </div>
-                <input type="range" class="time-slider" id="timeSlider" min="0" max="12" value="12">
-                <div class="time-range-labels">
-                    <span>1 Month</span>
-                    <span>6 Months</span>
-                    <span>All Time</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">From</label>
+                        <input type="date" class="date-picker-input" id="dateFrom" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; color: #666; margin-bottom: 4px;">To</label>
+                        <input type="date" class="date-picker-input" id="dateTo" style="width: 100%;">
+                    </div>
                 </div>
             </div>
             
@@ -1284,6 +1288,7 @@
         
         // Event Listeners
         document.getElementById('loadDemoBtn').addEventListener('click', () => {
+            allWorkouts = demoWorkouts; // Store for filtering
             loadWorkouts(demoWorkouts);
             document.querySelector('.import-panel').style.display = 'none';
         });
@@ -1325,30 +1330,55 @@
                 
                 const type = btn.dataset.type;
                 if (type === 'all') {
-                    loadWorkouts(demoWorkouts);
+                    applyDateRangeFilter(); // Apply current date filter
                 } else {
-                    loadWorkouts(demoWorkouts.filter(w => w.type === type));
+                    // Apply both activity type and date filter
+                    const fromDate = document.getElementById('dateFrom').value;
+                    const toDate = document.getElementById('dateTo').value;
+                    const from = fromDate ? new Date(fromDate + 'T00:00:00') : new Date('1900-01-01');
+                    const to = toDate ? new Date(toDate + 'T23:59:59') : new Date('2100-12-31');
+                    
+                    const filtered = allWorkouts.filter(w => {
+                        const workoutDate = new Date(w.date);
+                        return w.type === type && workoutDate >= from && workoutDate <= to;
+                    });
+                    loadWorkouts(filtered);
                 }
             });
         });
         
-        // Time slider
-        document.getElementById('timeSlider').addEventListener('input', (e) => {
-            const months = parseInt(e.target.value);
-            const labels = ['1 Month', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', 
-                           '7 Months', '8 Months', '9 Months', '10 Months', '11 Months', '1 Year', 'All Time'];
-            document.getElementById('timeRangeValue').textContent = labels[months];
+        // Date range filtering
+        let allWorkouts = []; // Store all workouts for filtering
+        
+        function applyDateRangeFilter() {
+            const fromDate = document.getElementById('dateFrom').value;
+            const toDate = document.getElementById('dateTo').value;
             
-            // Filter workouts by date
-            const now = new Date();
-            const cutoff = new Date();
-            cutoff.setMonth(cutoff.getMonth() - (months + 1));
-            
-            if (months === 12) {
-                loadWorkouts(demoWorkouts);
-            } else {
-                loadWorkouts(demoWorkouts.filter(w => new Date(w.date) >= cutoff));
+            if (!fromDate && !toDate) {
+                // No filter, show all
+                loadWorkouts(allWorkouts);
+                return;
             }
+            
+            const from = fromDate ? new Date(fromDate + 'T00:00:00') : new Date('1900-01-01');
+            const to = toDate ? new Date(toDate + 'T23:59:59') : new Date('2100-12-31');
+            
+            const filtered = allWorkouts.filter(w => {
+                const workoutDate = new Date(w.date);
+                return workoutDate >= from && workoutDate <= to;
+            });
+            
+            loadWorkouts(filtered);
+            console.log(`Filtered ${filtered.length} of ${allWorkouts.length} workouts (${fromDate || 'any'} to ${toDate || 'any'})`);
+        }
+        
+        document.getElementById('dateFrom').addEventListener('change', applyDateRangeFilter);
+        document.getElementById('dateTo').addEventListener('change', applyDateRangeFilter);
+        
+        document.getElementById('clearDateRange').addEventListener('click', () => {
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value = '';
+            applyDateRangeFilter();
         });
         
         // File import
@@ -1387,6 +1417,7 @@
                 if (response.ok) {
                     const data = await response.json();
                     if (data && data.length > 0) {
+                        allWorkouts = data; // Store for filtering
                         loadWorkouts(data);
                         document.querySelector('.import-panel').style.display = 'none';
                         updateSyncStatus('Live');

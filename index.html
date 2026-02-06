@@ -676,20 +676,27 @@
         display: none;
     " ontouchstart="
         this.style.transform = 'scale(0.95)';
+        this.style.background = '#FF8A55';
         console.log('👆 TOUCH START - Button pressed');
+        alert('Touch started!');
     " ontouchend="
         event.preventDefault();
         this.style.transform = 'scale(1)';
+        this.style.background = '#FF6B35';
         console.log('🎯 TOUCH END - Toggling sidebar');
+        alert('Touch ended - about to toggle');
         const sidebar = document.querySelector('.sidebar');
         if (!sidebar) {
             console.error('❌ Sidebar not found!');
-            alert('Error: Sidebar not found');
+            alert('ERROR: Sidebar not found!');
             return;
         }
         console.log('Sidebar current classes:', sidebar.className);
+        const hadShow = sidebar.classList.contains('show');
         sidebar.classList.toggle('show');
+        const hasShow = sidebar.classList.contains('show');
         console.log('Sidebar new classes:', sidebar.className);
+        alert('Toggle complete! Show class: ' + hadShow + ' → ' + hasShow);
         console.log('✅ Toggle complete');
     " onclick="
         event.preventDefault();

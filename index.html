@@ -396,25 +396,76 @@
         }
         
         /* Import Panel */
-        .import-panel {
-            display: none; /* Hidden by default */
+        /* Menu Button */
+        .menu-button {
             position: absolute;
             top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 20px;
+            z-index: 1100;
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        
+        .menu-button:hover {
+            background: #222;
+            transform: scale(1.05);
+        }
+        
+        .menu-dropdown {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            z-index: 1100;
             background: #161616;
             border: 1px solid #333;
             border-radius: 12px;
-            padding: 16px 24px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 16px;
+            padding: 8px;
+            min-width: 200px;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
         
-        .import-text {
+        .menu-dropdown.show {
+            display: block;
+        }
+        
+        .menu-item {
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
             font-size: 13px;
-            color: #888;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .menu-item:hover {
+            background: #222;
+        }
+        
+        .menu-item.primary {
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+        }
+        
+        .menu-item.primary:hover {
+            transform: scale(1.02);
         }
         
         .import-btn {
@@ -768,12 +819,17 @@
             <div id="map"></div>
             
             <!-- Import Panel -->
-            <div class="import-panel" id="importPanel">
-                <span class="import-text">Auto-sync from Apple Watch or import manually</span>
+            <!-- Menu Button -->
+            <div class="menu-button" id="menuButton" onclick="toggleMenu()">
+                ⚙️
+            </div>
+            
+            <!-- Menu Dropdown -->
+            <div class="menu-dropdown" id="menuDropdown">
                 <input type="file" id="fileInput" accept=".gpx,.xml,.json" style="display: none;">
-                <button class="import-btn" onclick="document.getElementById('fileInput').click()">📁 Import</button>
-                <button class="demo-btn" id="loadDemoBtn">Load Demo</button>
-                <button class="demo-btn" id="showSetupBtn">⚙️ Setup Sync</button>
+                <button class="menu-item primary" onclick="document.getElementById('fileInput').click(); toggleMenu();">📁 Import File</button>
+                <button class="menu-item" id="loadDemoBtn">🎨 Load Demo</button>
+                <button class="menu-item" id="showSetupBtn">⚙️ Setup Auto-Sync</button>
             </div>
             
             <!-- Setup Modal -->
@@ -1286,11 +1342,26 @@
             updateHeatMap();
         }
         
+        // Menu toggle
+        function toggleMenu() {
+            const menu = document.getElementById('menuDropdown');
+            menu.classList.toggle('show');
+        }
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('menuDropdown');
+            const menuButton = document.getElementById('menuButton');
+            if (menu && menuButton && !menu.contains(e.target) && !menuButton.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+        
         // Event Listeners
         document.getElementById('loadDemoBtn').addEventListener('click', () => {
             allWorkouts = demoWorkouts; // Store for filtering
             loadWorkouts(demoWorkouts);
-            document.querySelector('.import-panel').style.display = 'none';
+            toggleMenu(); // Close menu after action
         });
         
         document.getElementById('worldViewBtn').addEventListener('click', () => {
@@ -1438,7 +1509,6 @@
                         try {
                             const data = JSON.parse(content);
                             loadWorkouts(data);
-                            document.querySelector('.import-panel').style.display = 'none';
                         } catch (err) {
                             alert('Error parsing JSON file');
                         }
@@ -1464,7 +1534,6 @@
                     if (data && data.length > 0) {
                         allWorkouts = data; // Store for filtering
                         loadWorkouts(data);
-                        document.querySelector('.import-panel').style.display = 'none';
                         updateSyncStatus('Live');
                         return true;
                     }
@@ -1497,11 +1566,6 @@
                     
                     if (stats.lastSync) {
                         updateSyncStatus('Synced ' + new Date(stats.lastSync).toLocaleTimeString());
-                    }
-                    
-                    // Hide import panel if we have data
-                    if (stats.totalSteps > 0 || stats.totalDistance > 0) {
-                        document.querySelector('.import-panel').style.display = 'none';
                     }
                     
                     return true;

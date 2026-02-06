@@ -1,0 +1,236 @@
+--- MOBILE RESPONSIVE & DATE PICKER UPDATES ---
+
+1. Add mobile toggle button CSS (add after existing styles, around line 200):
+
+```css
+/* Mobile Toggle Button */
+.mobile-toggle {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    border-radius: 50%;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+    transition: transform 0.2s;
+}
+
+.mobile-toggle:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+    .mobile-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .sidebar {
+        position: fixed;
+        left: -100%;
+        transition: left 0.3s ease;
+        width: 100%;
+        max-width: 380px;
+    }
+    
+    .sidebar.show {
+        left: 0;
+    }
+    
+    .map-container {
+        width: 100% !important;
+    }
+}
+```
+
+2. Add Daily Breakdown section CSS (add after activity-filter styles):
+
+```css
+/* Daily Breakdown */
+.daily-breakdown {
+    padding: 20px 24px;
+    border-bottom: 1px solid #222;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.daily-breakdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.daily-breakdown-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.date-picker-input {
+    padding: 8px 12px;
+    background: #161616;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.daily-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #161616;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.daily-item:hover {
+    background: #1a1a1a;
+    border-left: 3px solid #ff6b35;
+}
+
+.daily-item-date {
+    font-size: 13px;
+    color: #888;
+    font-weight: 500;
+}
+
+.daily-item-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.daily-stat {
+    text-align: right;
+}
+
+.daily-stat-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.daily-stat-label {
+    font-size: 10px;
+    color: #666;
+    text-transform: uppercase;
+}
+```
+
+3. Add HTML for daily breakdown (insert after activity-filter section, before Recent Workouts):
+
+```html
+<!-- Daily Breakdown -->
+<div class="daily-breakdown">
+    <div class="daily-breakdown-header">
+        <span class="daily-breakdown-title">Daily Breakdown</span>
+        <input type="date" class="date-picker-input" id="datePicker" />
+    </div>
+    <div id="dailyList">
+        <!-- Populated by JavaScript -->
+    </div>
+</div>
+```
+
+4. Add mobile toggle button HTML (before closing </body>):
+
+```html
+<!-- Mobile Toggle -->
+<button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">
+    <span id="toggleIcon">📊</span>
+</button>
+```
+
+5. Add JavaScript functions (add to existing script section):
+
+```javascript
+// Mobile sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (sidebar.classList.contains('show')) {
+        sidebar.classList.remove('show');
+        toggleIcon.textContent = '📊';
+    } else {
+        sidebar.classList.add('show');
+        toggleIcon.textContent = '🗺️';
+    }
+}
+
+// Populate daily breakdown
+function populateDailyBreakdown(dailyStats) {
+    const dailyList = document.getElementById('dailyList');
+    if (!dailyStats || dailyStats.length === 0) {
+        dailyList.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">No daily data available</div>';
+        return;
+    }
+    
+    // Sort by date descending
+    const sorted = dailyStats.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    dailyList.innerHTML = sorted.map(day => `
+        <div class="daily-item" onclick="highlightDay('${day.date}')">
+            <div class="daily-item-date">${formatDate(day.date)}</div>
+            <div class="daily-item-stats">
+                <div class="daily-stat">
+                    <div class="daily-stat-value">${day.steps.toLocaleString()}</div>
+                    <div class="daily-stat-label">Steps</div>
+                </div>
+                <div class="daily-stat">
+                    <div class="daily-stat-value">${day.distance.toFixed(1)}</div>
+                    <div class="daily-stat-label">Miles</div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Format date for display
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Highlight specific day
+function highlightDay(date) {
+    console.log('Selected day:', date);
+    // Can add map highlighting or filtering here
+}
+
+// Date picker change handler
+document.addEventListener('DOMContentLoaded', () => {
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.addEventListener('change', (e) => {
+            const selectedDate = e.target.value;
+            highlightDay(selectedDate);
+        });
+    }
+});
+
+// Call populateDailyBreakdown in fetchHealthData() after setting stats
+// Add this line after updating total stats:
+populateDailyBreakdown(data.dailyStats);
+```

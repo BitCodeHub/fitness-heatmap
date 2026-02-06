@@ -505,8 +505,8 @@
         .mobile-toggle {
             display: none;
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            top: 20px;
+            left: 20px;
             width: 56px;
             height: 56px;
             background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
@@ -522,6 +522,10 @@
         
         .mobile-toggle:active {
             transform: scale(0.95);
+        }
+        
+        .mobile-toggle span {
+            display: block;
         }
         
         /* Daily Breakdown */
@@ -602,9 +606,13 @@
         
         @media (max-width: 768px) {
             .mobile-toggle {
-                display: flex;
+                display: flex !important;
                 align-items: center;
                 justify-content: center;
+            }
+            
+            .app-container {
+                flex-direction: column;
             }
             
             .sidebar {
@@ -612,7 +620,8 @@
                 left: -100%;
                 transition: left 0.3s ease;
                 width: 100%;
-                max-width: 380px;
+                max-width: 100%;
+                height: 100vh;
                 z-index: 1500;
             }
             
@@ -622,6 +631,7 @@
             
             .map-container {
                 width: 100% !important;
+                height: 100vh !important;
             }
         }
 
@@ -792,6 +802,8 @@
             const sidebar = document.querySelector('.sidebar');
             const toggleIcon = document.getElementById('toggleIcon');
             
+            console.log('Toggle clicked', sidebar.classList.contains('show'));
+            
             if (sidebar.classList.contains('show')) {
                 sidebar.classList.remove('show');
                 toggleIcon.textContent = '📊';
@@ -800,6 +812,9 @@
                 toggleIcon.textContent = '🗺️';
             }
         }
+        
+        // Make toggleSidebar available globally
+        window.toggleSidebar = toggleSidebar;
         
         // Populate daily breakdown
         function populateDailyBreakdown(dailyStats) {

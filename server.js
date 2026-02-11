@@ -294,6 +294,34 @@ app.post('/api/webhook/workout', async (req, res) => {
     }
 });
 
+// POST /api/webhook/meal - Receive food/calorie log from Lumen Vision glasses
+app.post('/api/webhook/meal', async (req, res) => {
+    try {
+        console.log('Received meal webhook:', new Date().toISOString());
+        const { timestamp, calories, foods, meal_type } = req.body;
+        
+        // Log the meal
+        await pool.query('INSERT INTO fitness_sync_log (payload) VALUES ($1)', [JSON.stringify(req.body)]);
+        
+        // Add to daily stats
+        const date = new Date(timestamp || Date.now()).toISOString().split('T')[0];
+        const existing = await pool.query('SELECT calories FROM fitness_daily_stats WHERE date = $1', [date]);
+        
+        if (existing.rows.length > 0) {
+            const newCalories = parseInt(existing.rows[0].calories) + parseInt(calories);
+            await pool.query('UPDATE fitness_daily_stats SET calories = $1 WHERE date = $2', [newCalories, date]);
+        } else {
+            await pool.query('INSERT INTO fitness_daily_stats (date, calories) VALUES ($1, $2)', [date, calories]);
+        }
+        
+        console.log(`Logged meal: ${foods?.join(', ')} - ${calories} cal (${meal_type})`);
+        res.json({ success: true, message: 'Meal logged', totalToday: existing.rows[0]?.calories || calories });
+    } catch (err) {
+        console.error('Meal webhook error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // DELETE /api/workouts/:id - Delete a workout
 app.delete('/api/workouts/:id', async (req, res) => {
     try {
